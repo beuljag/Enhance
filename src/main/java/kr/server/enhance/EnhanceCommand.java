@@ -4,13 +4,14 @@ import org.bukkit.Bukkit;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.command.TabExecutor;
-import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 
 final class EnhanceCommand implements TabExecutor {
 
@@ -21,19 +22,21 @@ final class EnhanceCommand implements TabExecutor {
     private final EnhanceData data;
     private final EnhanceItems items;
     private final VaultHook vault;
+    private final StarEffects effects;
 
-    EnhanceCommand(EnhancePlugin plugin, EnhanceData data, EnhanceItems items, VaultHook vault) {
+    EnhanceCommand(EnhancePlugin plugin, EnhanceData data, EnhanceItems items, VaultHook vault, StarEffects effects) {
         this.plugin = plugin;
         this.data = data;
         this.items = items;
         this.vault = vault;
+        this.effects = effects;
     }
 
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
         if (args.length == 0) {
             if (sender instanceof Player player) {
-                new EnhanceMenu(plugin, items, vault, player).open();
+                new EnhanceMenu(plugin, items, vault, effects, player).open();
             } else {
                 help(sender, label);
             }
@@ -60,29 +63,33 @@ final class EnhanceCommand implements TabExecutor {
         send(sender, "명령어 목록");
         for (String line : List.of(
                 "&7- 들고 있는 장비의 강화 창 열기",
-                "give [수량] [플레이어|@a,@s...] &7- 별의 주문서 지급",
+                "give [대상...] [수량] &7- 별의 주문서 지급 (대상: 이름, @a, @e, @p, @r, @s)",
                 "set <강화> <별> &7- 들고 있는 장비의 수치 변경",
-                "open <플레이어|@a,@s...> &7- 대상의 강화 창 열기 (NPC, 콘솔용)",
+                "open <대상...> &7- 대상의 강화 창 열기 (NPC, 콘솔용)",
                 "reload &7- 설정 다시 불러오기")) {
             sender.sendMessage(EnhancePlugin.color("&e/" + label + " " + line));
         }
     }
 
+    /** 수량과 대상은 순서에 상관없이 받는다. 첫 번째 숫자가 수량이고 나머지는 모두 대상이다. */
     private void give(CommandSender sender, String[] args) {
-        int amount;
-        try {
-            amount = args.length > 1 ? Integer.parseInt(args[1]) : 1;
-        } catch (NumberFormatException e) {
-            send(sender, "&c수량은 숫자로 입력하세요: " + args[1]);
-            return;
+        Integer parsed = null;
+        List<String> selectors = new ArrayList<>();
+        for (int i = 1; i < args.length; i++) {
+            Integer number = parsed == null ? parseNumber(args[i]) : null;
+            if (number != null) {
+                parsed = number;
+            } else {
+                selectors.add(args[i]);
+            }
         }
+        int amount = parsed != null ? parsed : 1;
         if (amount < 1) {
             send(sender, "&c수량은 1 이상이어야 합니다.");
             return;
         }
-        List<Player> targets = resolvePlayers(sender, args.length > 2 ? args[2] : null);
-        if (targets.isEmpty()) {
-            send(sender, "&c대상 플레이어를 찾지 못했습니다.");
+        List<Player> targets = resolvePlayers(sender, selectors);
+        if (targets == null) {
             return;
         }
         for (Player target : targets) {
@@ -128,32 +135,84 @@ final class EnhanceCommand implements TabExecutor {
 
     private void open(CommandSender sender, String label, String[] args) {
         if (args.length < 2) {
-            send(sender, "&c/" + label + " open <플레이어|@a,@s...>");
+            send(sender, "&c/" + label + " open <대상...>");
             return;
         }
-        List<Player> targets = resolvePlayers(sender, args[1]);
-        if (targets.isEmpty()) {
-            send(sender, "&c대상 플레이어를 찾지 못했습니다.");
+        List<Player> targets = resolvePlayers(sender, List.of(args).subList(1, args.length));
+        if (targets != null) {
+            targets.forEach(target -> new EnhanceMenu(plugin, items, vault, effects, target).open());
         }
-        targets.forEach(target -> new EnhanceMenu(plugin, items, vault, target).open());
     }
 
-    /** 이름이나 선택자로 플레이어를 찾는다. 대상을 적지 않으면 명령어를 쓴 플레이어. */
-    private List<Player> resolvePlayers(CommandSender sender, String selector) {
-        if (selector == null) {
-            return sender instanceof Player player ? List.of(player) : List.of();
-        }
-        List<Player> result = new ArrayList<>();
+    private Integer parseNumber(String text) {
         try {
-            for (Entity entity : Bukkit.selectEntities(sender, selector)) {
-                if (entity instanceof Player player) {
-                    result.add(player);
-                }
-            }
-        } catch (IllegalArgumentException e) {
-            send(sender, "&c잘못된 대상입니다: " + selector);
+            return Integer.parseInt(text);
+        } catch (NumberFormatException e) {
+            return null;
         }
-        return result;
+    }
+
+    /**
+     * 이름이나 선택자로 온라인 플레이어를 찾는다. 대상을 적지 않으면 명령어를 쓴 플레이어다.
+     * 하나라도 찾지 못하면 오타로 일부에게만 지급되지 않도록 안내하고 null을 돌려준다.
+     */
+    private List<Player> resolvePlayers(CommandSender sender, List<String> selectors) {
+        if (selectors.isEmpty()) {
+            if (sender instanceof Player player) {
+                return List.of(player);
+            }
+            send(sender, "&c대상을 입력하세요.");
+            return null;
+        }
+        Set<Player> result = new LinkedHashSet<>();
+        for (String argument : selectors) {
+            for (String selector : splitTargets(argument)) {
+                List<Player> found = select(sender, selector);
+                if (found.isEmpty()) {
+                    send(sender, "&c대상 플레이어를 찾지 못했습니다: " + selector);
+                    return null;
+                }
+                result.addAll(found);
+            }
+        }
+        return List.copyOf(result);
+    }
+
+    private List<Player> select(CommandSender sender, String selector) {
+        try {
+            return Bukkit.selectEntities(sender, normalizeSelector(selector)).stream()
+                    .filter(Player.class::isInstance).map(Player.class::cast).toList();
+        } catch (IllegalArgumentException e) {
+            return List.of();
+        }
+    }
+
+    /** @A처럼 대문자로 적어도 되게 한다. 대괄호 안의 조건은 대소문자를 구분하므로 그대로 둔다. */
+    private String normalizeSelector(String selector) {
+        if (selector.length() >= 2 && selector.charAt(0) == '@') {
+            return "@" + Character.toLowerCase(selector.charAt(1)) + selector.substring(2);
+        }
+        return selector;
+    }
+
+    /** A,B처럼 쉼표로 이어 적은 대상을 나눈다. @a[limit=1,distance=..5]의 대괄호 안 쉼표는 나누지 않는다. */
+    private List<String> splitTargets(String argument) {
+        List<String> parts = new ArrayList<>();
+        int depth = 0;
+        int start = 0;
+        for (int i = 0; i < argument.length(); i++) {
+            char c = argument.charAt(i);
+            if (c == '[') {
+                depth++;
+            } else if (c == ']') {
+                depth--;
+            } else if (c == ',' && depth == 0) {
+                parts.add(argument.substring(start, i));
+                start = i + 1;
+            }
+        }
+        parts.add(argument.substring(start));
+        return parts.stream().filter(part -> !part.isEmpty()).toList();
     }
 
     private void send(CommandSender sender, String message) {
@@ -165,17 +224,21 @@ final class EnhanceCommand implements TabExecutor {
         if (!sender.hasPermission(ADMIN)) {
             return List.of();
         }
-        List<String> options = switch (args.length) {
-            case 1 -> List.of("give", "set", "open", "reload");
-            case 2 -> args[0].equalsIgnoreCase("open") ? onlineNames() : List.of();
-            case 3 -> args[0].equalsIgnoreCase("give") ? onlineNames() : List.of();
-            default -> List.of();
-        };
+        List<String> options;
+        if (args.length == 1) {
+            options = List.of("give", "set", "open", "reload");
+        } else if (args[0].equalsIgnoreCase("give") || args[0].equalsIgnoreCase("open")) {
+            options = targetOptions();
+        } else {
+            options = List.of();
+        }
         String prefix = args[args.length - 1].toLowerCase(Locale.ROOT);
         return options.stream().filter(option -> option.toLowerCase(Locale.ROOT).startsWith(prefix)).toList();
     }
 
-    private List<String> onlineNames() {
-        return Bukkit.getOnlinePlayers().stream().map(Player::getName).toList();
+    private List<String> targetOptions() {
+        List<String> options = new ArrayList<>(List.of("@a", "@e", "@p", "@r", "@s"));
+        Bukkit.getOnlinePlayers().forEach(player -> options.add(player.getName()));
+        return options;
     }
 }

@@ -1,6 +1,7 @@
 package kr.server.enhance;
 
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.title.Title;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.Sound;
@@ -11,7 +12,9 @@ import org.bukkit.inventory.InventoryHolder;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.plugin.Plugin;
+import org.bukkit.scheduler.BukkitTask;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
@@ -27,22 +30,32 @@ final class EnhanceMenu implements InventoryHolder {
     private static final int BUTTON_SLOT = 15;
     /** 연타로 결과를 보기 전에 다시 강화되는 일을 막는 간격. */
     private static final long CLICK_COOLDOWN_MILLIS = 400;
+    private static final int ROW_START = 9;
+    private static final int ROW_CENTER = 13;
+    private static final int ROW_END = 17;
+    private static final long FRAME_TICKS = 4;
+    private static final Title.Times TITLE_TIMES =
+            Title.Times.times(Duration.ofMillis(200), Duration.ofMillis(2000), Duration.ofMillis(500));
 
     private final Plugin plugin;
     private final EnhanceItems items;
     private final EnhanceData data;
     private final VaultHook vault;
+    private final StarEffects effects;
     private final Player player;
     private final Inventory inventory;
 
     private int slot = -1;
     private long nextClick;
+    private BukkitTask animation;
+    private int frame;
 
-    EnhanceMenu(Plugin plugin, EnhanceItems items, VaultHook vault, Player player) {
+    EnhanceMenu(Plugin plugin, EnhanceItems items, VaultHook vault, StarEffects effects, Player player) {
         this.plugin = plugin;
         this.items = items;
         this.data = items.data();
         this.vault = vault;
+        this.effects = effects;
         this.player = player;
         this.inventory = Bukkit.createInventory(this, SIZE, EnhancePlugin.color("&8장비 강화"));
     }
@@ -71,7 +84,7 @@ final class EnhanceMenu implements InventoryHolder {
 
     /** 아래쪽 플레이어 인벤토리를 클릭하면 그 장비를 강화 대상으로 고른다. */
     void clickInventory(int clickedSlot) {
-        if (EnhanceItems.isEquipment(player.getInventory().getItem(clickedSlot))) {
+        if (animation == null && EnhanceItems.isEquipment(player.getInventory().getItem(clickedSlot))) {
             slot = clickedSlot;
             player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 0.5f, 1f);
             render();
@@ -79,7 +92,7 @@ final class EnhanceMenu implements InventoryHolder {
     }
 
     void clickTop(int rawSlot, ClickType click) {
-        if ((click == ClickType.LEFT || click == ClickType.RIGHT) && rawSlot == BUTTON_SLOT
+        if (animation == null && (click == ClickType.LEFT || click == ClickType.RIGHT) && rawSlot == BUTTON_SLOT
                 && System.currentTimeMillis() >= nextClick) {
             nextClick = System.currentTimeMillis() + CLICK_COOLDOWN_MILLIS;
             attempt();
@@ -92,9 +105,62 @@ final class EnhanceMenu implements InventoryHolder {
         if (stage == Stage.ENHANCE) {
             enhance(item);
         } else if (stage == Stage.STAR) {
-            gainStar(item);
+            startStarAnimation();
         }
         render();
+    }
+
+    /** 왼쪽과 오른쪽에서 별이 가운데로 모인 뒤에 별을 준다. 주문서는 끝날 때 쓰므로 도중에 창을 닫으면 그대로 남는다. */
+    private void startStarAnimation() {
+        if (items.countScrolls(player) == 0) {
+            refuse(EnhancePlugin.color(rawMessage("no-scroll").replace("%scroll%", scrollName())));
+            return;
+        }
+        frame = 0;
+        renderFrame();
+        animation = Bukkit.getScheduler().runTaskTimer(plugin, () -> {
+            frame++;
+            if (ROW_START + frame >= ROW_CENTER) {
+                finishStarAnimation();
+            } else {
+                renderFrame();
+            }
+        }, FRAME_TICKS, FRAME_TICKS);
+    }
+
+    private void renderFrame() {
+        ItemStack pane = icon(Material.BLACK_STAINED_GLASS_PANE, " ", List.of());
+        for (int i = 0; i < SIZE; i++) {
+            inventory.setItem(i, pane);
+        }
+        ItemStack star = icon(Material.NETHER_STAR, "&e★", List.of());
+        inventory.setItem(ROW_START + frame, star);
+        inventory.setItem(ROW_END - frame, star);
+        ItemStack item = target();
+        if (item != null) {
+            inventory.setItem(ROW_CENTER, item.clone());
+        }
+        player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_PLING, 0.7f, 0.8f + frame * 0.3f);
+    }
+
+    private void finishStarAnimation() {
+        cancelAnimation();
+        ItemStack item = target();
+        if (item != null && items.nextStage(item) == Stage.STAR && items.consumeScroll(player)) {
+            gainStar(item);
+        }
+        player.closeInventory();
+    }
+
+    private void cancelAnimation() {
+        if (animation != null) {
+            animation.cancel();
+            animation = null;
+        }
+    }
+
+    void onClose() {
+        cancelAnimation();
     }
 
     private void refuse(Component message) {
@@ -104,24 +170,26 @@ final class EnhanceMenu implements InventoryHolder {
 
     /** 별을 얻으면 0강으로 돌아가서 다시 최대 강화를 노린다. */
     private void gainStar(ItemStack item) {
-        if (!items.consumeScroll(player)) {
-            refuse(EnhancePlugin.color(rawMessage("no-scroll").replace("%scroll%", scrollName())));
-            return;
-        }
         String before = items.describe(item);
-        items.apply(item, 0, items.stars(item) + 1);
+        int stars = items.stars(item) + 1;
+        items.apply(item, 0, stars);
         player.sendMessage(result("star", before, item));
         String effect = items.lastEffectText(item);
         if (effect != null) {
             player.sendMessage(EnhancePlugin.color(rawMessage("star-effect").replace("%effect%", effect)));
         }
-        player.playSound(player.getLocation(), Sound.UI_TOAST_CHALLENGE_COMPLETE, 0.8f, 1f);
+        player.showTitle(Title.title(
+                EnhancePlugin.color(rawMessage("star-title").replace("%stars%", Integer.toString(stars))),
+                effect != null ? EnhancePlugin.color(rawMessage("star-subtitle").replace("%effect%", effect))
+                        : Component.empty(),
+                TITLE_TIMES));
+        effects.play(player, stars);
     }
 
     private void enhance(ItemStack item) {
         int level = items.level(item);
         int stars = items.stars(item);
-        EnhanceData.Chance chance = data.chance(level);
+        EnhanceData.Chance chance = data.chance(level, stars);
         if (!pay(chance.cost())) {
             return;
         }
@@ -184,6 +252,9 @@ final class EnhanceMenu implements InventoryHolder {
     }
 
     private void render() {
+        if (animation != null) {
+            return;
+        }
         ItemStack pane = icon(Material.GRAY_STAINED_GLASS_PANE, " ", List.of());
         for (int i = 0; i < SIZE; i++) {
             inventory.setItem(i, pane);
@@ -209,7 +280,7 @@ final class EnhanceMenu implements InventoryHolder {
 
     private List<String> enhanceLore(ItemStack item) {
         int level = items.level(item);
-        EnhanceData.Chance chance = data.chance(level);
+        EnhanceData.Chance chance = data.chance(level, items.stars(item));
         double fail = 100 - chance.success() - chance.drop() - chance.destroy();
         List<String> lore = new ArrayList<>();
         lore.add("&f+" + level + " &7-> &e+" + (level + 1));

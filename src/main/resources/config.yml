@@ -19,6 +19,8 @@ star:
   max: 10
   # 별 1개의 능력치가 강화 몇 단계와 같은지. 최대 강화(10)보다 크면 별을 얻고 0강이 되어도 능력치가 오릅니다.
   levels: 12
+  # 별 1개마다 강화 성공 확률에 곱하는 값. 줄어든 만큼 실패가 늘어납니다. (0.9면 별 1개 90%, 별 2개 81%...)
+  success-multiplier: 0.9
   # 별을 얻을 때마다 아래에서 무작위로 1개를 뽑습니다. 모두 같은 확률이고, 같은 장비에는 겹치지 않습니다.
   # 효과 이름(왼쪽)은 아이템에 저장되므로 바꾸지 마세요. 지운 효과는 이미 가진 장비에서도 다음 변화 때 사라집니다.
   # attribute: Paper의 Attribute 이름, amount: 올릴 값, text: 아이템 설명에 보일 문구
@@ -105,3 +107,5 @@ messages:
   destroy-bound: "&4장비가 파괴될 뻔했지만 귀속 저주로 남았습니다. &c%before% &7-> &c+0, 별 0개"
   star: "&e별을 얻었습니다! &f%before% &7-> &e%after%"
   star-effect: "&b새 부가 효과: &f%effect%"
+  star-title: "&6★ &e%stars%"
+  star-subtitle: "&b%effect%"

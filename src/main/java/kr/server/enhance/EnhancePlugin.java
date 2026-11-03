@@ -13,6 +13,7 @@ public final class EnhancePlugin extends JavaPlugin {
             LegacyComponentSerializer.builder().character('&').hexColors().build();
 
     private EnhanceData data;
+    private StarEffects effects;
 
     static Component color(String text) {
         return LEGACY.deserialize(text);
@@ -32,7 +33,8 @@ public final class EnhancePlugin extends JavaPlugin {
 
         getServer().getPluginManager().registerEvents(new EnhanceListener(items), this);
 
-        EnhanceCommand command = new EnhanceCommand(this, data, items, new VaultHook(getLogger()));
+        effects = new StarEffects(this);
+        EnhanceCommand command = new EnhanceCommand(this, data, items, new VaultHook(getLogger()), effects);
         PluginCommand registered = getCommand("enhance");
         registered.setExecutor(command);
         registered.setTabCompleter(command);
@@ -42,6 +44,9 @@ public final class EnhancePlugin extends JavaPlugin {
 
     @Override
     public void onDisable() {
+        if (effects != null) {
+            effects.stopAll();
+        }
         // 리스너가 사라진 뒤에 창의 아이콘을 꺼내지 못하게 닫는다.
         for (Player player : getServer().getOnlinePlayers()) {
             if (player.getOpenInventory().getTopInventory().getHolder() instanceof EnhanceMenu) {

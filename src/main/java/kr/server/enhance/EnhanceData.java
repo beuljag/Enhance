@@ -60,6 +60,7 @@ final class EnhanceData {
     private Scroll scroll;
     private int maxStars;
     private double starLevels;
+    private double starSuccessMultiplier;
 
     EnhanceData(Plugin plugin) {
         this.plugin = plugin;
@@ -70,6 +71,7 @@ final class EnhanceData {
         rates = loadRates("enhance.rates", config.getStringList("enhance.rates"));
         maxStars = Math.max(0, config.getInt("star.max", 10));
         starLevels = config.getDouble("star.levels", 12);
+        starSuccessMultiplier = Math.clamp(config.getDouble("star.success-multiplier", 0.9), 0.0, 1.0);
         scroll = loadScroll(config.getConfigurationSection("scroll"));
         for (Category category : Category.values()) {
             String path = "stats." + category.key;
@@ -177,9 +179,11 @@ final class EnhanceData {
         return maxStars;
     }
 
-    /** level에서 다음 강화 수치로 올라갈 때의 확률과 비용. */
-    Chance chance(int level) {
-        return rates.get(level);
+    /** level에서 다음 강화 수치로 올라갈 때의 확률과 비용. 별이 많을수록 성공 확률이 줄고, 줄어든 만큼 실패가 는다. */
+    Chance chance(int level, int stars) {
+        Chance base = rates.get(level);
+        return new Chance(base.success() * Math.pow(starSuccessMultiplier, stars),
+                base.drop(), base.destroy(), base.cost());
     }
 
     Scroll scroll() {
