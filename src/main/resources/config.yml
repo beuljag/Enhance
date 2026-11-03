@@ -1,0 +1,107 @@
+# 한 줄이 한 단계입니다. 값은 "성공 하락 파괴 비용" 순서입니다. 확률은 %이고 남은 확률은 실패(수치 유지)입니다.
+# 비용은 Vault 경제 플러그인의 돈으로, 결과와 상관없이 시도할 때마다 빠집니다.
+# 줄 수가 최대 강화 수치입니다.
+enhance:
+  rates:
+    - "100 0 0 1000"     # +0 -> +1
+    - "95 0 0 2000"      # +1 -> +2
+    - "90 0 0 4000"      # +2 -> +3
+    - "80 0 0 7000"      # +3 -> +4
+    - "70 0 0 12000"     # +4 -> +5
+    - "60 20 0 20000"    # +5 -> +6
+    - "50 25 0 35000"    # +6 -> +7
+    - "40 30 5 60000"    # +7 -> +8
+    - "30 30 10 100000"  # +8 -> +9
+    - "20 35 15 150000"  # +9 -> +10
+
+# 최대 강화에 도달한 장비에 별의 주문서를 쓰면 별 1개를 얻고 0강으로 돌아갑니다.
+star:
+  max: 10
+  # 별 1개의 능력치가 강화 몇 단계와 같은지. 최대 강화(10)보다 크면 별을 얻고 0강이 되어도 능력치가 오릅니다.
+  levels: 12
+  # 별을 얻을 때마다 아래에서 무작위로 1개를 뽑습니다. 모두 같은 확률이고, 같은 장비에는 겹치지 않습니다.
+  # 효과 이름(왼쪽)은 아이템에 저장되므로 바꾸지 마세요. 지운 효과는 이미 가진 장비에서도 다음 변화 때 사라집니다.
+  # attribute: Paper의 Attribute 이름, amount: 올릴 값, text: 아이템 설명에 보일 문구
+  # only: 이 종류의 장비에만 붙습니다 (melee, ranged, armor, tool). 없으면 모든 장비에 붙습니다.
+  effects:
+    # 모든 장비
+    health_1: {attribute: GENERIC_MAX_HEALTH, amount: 0.5, text: "최대 체력 +0.5"}
+    health_2: {attribute: GENERIC_MAX_HEALTH, amount: 1, text: "최대 체력 +1"}
+    health_3: {attribute: GENERIC_MAX_HEALTH, amount: 1.5, text: "최대 체력 +1.5"}
+    speed_1: {attribute: GENERIC_MOVEMENT_SPEED, amount: 0.001, text: "이동 속도 +1%"}
+    speed_2: {attribute: GENERIC_MOVEMENT_SPEED, amount: 0.002, text: "이동 속도 +2%"}
+    speed_3: {attribute: GENERIC_MOVEMENT_SPEED, amount: 0.003, text: "이동 속도 +3%"}
+    luck_1: {attribute: GENERIC_LUCK, amount: 0.25, text: "행운 +0.25"}
+    luck_2: {attribute: GENERIC_LUCK, amount: 0.5, text: "행운 +0.5"}
+    luck_3: {attribute: GENERIC_LUCK, amount: 1, text: "행운 +1"}
+    knockback_res_1: {attribute: GENERIC_KNOCKBACK_RESISTANCE, amount: 0.02, text: "밀치기 저항 +2%"}
+    knockback_res_2: {attribute: GENERIC_KNOCKBACK_RESISTANCE, amount: 0.05, text: "밀치기 저항 +5%"}
+    knockback_res_3: {attribute: GENERIC_KNOCKBACK_RESISTANCE, amount: 0.08, text: "밀치기 저항 +8%"}
+    armor_1: {attribute: GENERIC_ARMOR, amount: 0.25, text: "방어력 +0.25"}
+    armor_2: {attribute: GENERIC_ARMOR, amount: 0.5, text: "방어력 +0.5"}
+    toughness_1: {attribute: GENERIC_ARMOR_TOUGHNESS, amount: 0.25, text: "방어 강도 +0.25"}
+    toughness_2: {attribute: GENERIC_ARMOR_TOUGHNESS, amount: 0.5, text: "방어 강도 +0.5"}
+    explosion_res_1: {attribute: GENERIC_EXPLOSION_KNOCKBACK_RESISTANCE, amount: 0.05, text: "폭발 밀림 저항 +5%"}
+    explosion_res_2: {attribute: GENERIC_EXPLOSION_KNOCKBACK_RESISTANCE, amount: 0.1, text: "폭발 밀림 저항 +10%"}
+    safe_fall_1: {attribute: GENERIC_SAFE_FALL_DISTANCE, amount: 0.25, text: "낙하 안전 거리 +0.25"}
+    safe_fall_2: {attribute: GENERIC_SAFE_FALL_DISTANCE, amount: 0.5, text: "낙하 안전 거리 +0.5"}
+    fall_damage_1: {attribute: GENERIC_FALL_DAMAGE_MULTIPLIER, amount: -0.03, text: "낙하 피해 -3%"}
+    fall_damage_2: {attribute: GENERIC_FALL_DAMAGE_MULTIPLIER, amount: -0.05, text: "낙하 피해 -5%"}
+    jump_1: {attribute: GENERIC_JUMP_STRENGTH, amount: 0.01, text: "점프력 +0.01"}
+    jump_2: {attribute: GENERIC_JUMP_STRENGTH, amount: 0.02, text: "점프력 +0.02"}
+    step_1: {attribute: GENERIC_STEP_HEIGHT, amount: 0.1, text: "오르는 높이 +0.1"}
+    step_2: {attribute: GENERIC_STEP_HEIGHT, amount: 0.2, text: "오르는 높이 +0.2"}
+    burning: {attribute: GENERIC_BURNING_TIME, amount: -0.05, text: "불타는 시간 -5%"}
+    oxygen: {attribute: GENERIC_OXYGEN_BONUS, amount: 1, text: "산소 보너스 +1"}
+    water_speed: {attribute: GENERIC_WATER_MOVEMENT_EFFICIENCY, amount: 0.05, text: "물속 이동 +5%"}
+    sneak_speed: {attribute: PLAYER_SNEAKING_SPEED, amount: 0.05, text: "웅크린 이동 속도 +5%"}
+    move_efficiency: {attribute: GENERIC_MOVEMENT_EFFICIENCY, amount: 0.1, text: "험한 지형 이동 +10%"}
+    # 근접 무기
+    attack_speed_1: {attribute: GENERIC_ATTACK_SPEED, amount: 0.05, text: "공격 속도 +0.05", only: [melee]}
+    attack_speed_2: {attribute: GENERIC_ATTACK_SPEED, amount: 0.1, text: "공격 속도 +0.1", only: [melee]}
+    attack_speed_3: {attribute: GENERIC_ATTACK_SPEED, amount: 0.15, text: "공격 속도 +0.15", only: [melee]}
+    attack_1: {attribute: GENERIC_ATTACK_DAMAGE, amount: 0.25, text: "공격력 +0.25", only: [melee]}
+    attack_2: {attribute: GENERIC_ATTACK_DAMAGE, amount: 0.5, text: "공격력 +0.5", only: [melee]}
+    knockback_1: {attribute: GENERIC_ATTACK_KNOCKBACK, amount: 0.1, text: "밀치기 +0.1", only: [melee]}
+    knockback_2: {attribute: GENERIC_ATTACK_KNOCKBACK, amount: 0.2, text: "밀치기 +0.2", only: [melee]}
+    reach_1: {attribute: PLAYER_ENTITY_INTERACTION_RANGE, amount: 0.1, text: "공격 거리 +0.1", only: [melee]}
+    reach_2: {attribute: PLAYER_ENTITY_INTERACTION_RANGE, amount: 0.2, text: "공격 거리 +0.2", only: [melee]}
+    sweep: {attribute: PLAYER_SWEEPING_DAMAGE_RATIO, amount: 0.1, text: "휩쓸기 피해 +10%", only: [melee]}
+    # 도구
+    block_reach_1: {attribute: PLAYER_BLOCK_INTERACTION_RANGE, amount: 0.25, text: "블록 거리 +0.25", only: [tool]}
+    block_reach_2: {attribute: PLAYER_BLOCK_INTERACTION_RANGE, amount: 0.5, text: "블록 거리 +0.5", only: [tool]}
+    break_speed_1: {attribute: PLAYER_BLOCK_BREAK_SPEED, amount: 0.02, text: "블록 부수는 속도 +2%", only: [tool]}
+    break_speed_2: {attribute: PLAYER_BLOCK_BREAK_SPEED, amount: 0.05, text: "블록 부수는 속도 +5%", only: [tool]}
+    mining_1: {attribute: PLAYER_MINING_EFFICIENCY, amount: 0.5, text: "채굴 효율 +0.5", only: [tool]}
+    mining_2: {attribute: PLAYER_MINING_EFFICIENCY, amount: 1, text: "채굴 효율 +1", only: [tool]}
+    underwater_1: {attribute: PLAYER_SUBMERGED_MINING_SPEED, amount: 0.1, text: "물속 채굴 속도 +0.1", only: [tool]}
+    underwater_2: {attribute: PLAYER_SUBMERGED_MINING_SPEED, amount: 0.2, text: "물속 채굴 속도 +0.2", only: [tool]}
+    # 활, 쇠뇌, 방어구 전용
+    ranged_speed: {attribute: GENERIC_MOVEMENT_SPEED, amount: 0.004, text: "이동 속도 +4%", only: [ranged]}
+
+# 강화 1단계당 오르는 능력치입니다. 별 1개는 이 값의 star.levels배입니다.
+# attribute: Paper의 Attribute 이름. PROJECTILE이면 활과 쇠뇌의 화살 피해에 더합니다.
+# 능력치는 수치가 바뀔 때 아이템에 기록됩니다. 값을 바꿔도 이미 강화한 장비는 다음 변화 때 반영됩니다.
+stats:
+  melee: {attribute: GENERIC_ATTACK_DAMAGE, label: 공격력, amount: 0.5}          # 검, 도끼, 철퇴, 삼지창
+  ranged: {attribute: PROJECTILE, label: 화살 피해, amount: 0.4}                 # 활, 쇠뇌
+  armor: {attribute: GENERIC_ARMOR, label: 방어력, amount: 0.2}                  # 투구, 갑옷, 바지, 신발, 겉날개, 방패(왼손)
+  tool: {attribute: PLAYER_MINING_EFFICIENCY, label: 채굴 효율, amount: 0.5}     # 곡괭이, 삽, 괭이
+
+scroll:
+  material: NETHER_STAR
+  name: "&e별의 주문서"
+  lore:
+    - "&7+10 장비에 쓰면 별 1개와 무작위 부가 효과를 얻고 0강으로 돌아갑니다."
+
+messages:
+  no-economy: "&cVault 경제 플러그인이 없어 강화할 수 없습니다."
+  no-money: "&c돈이 부족합니다. &7필요: &f%cost%"
+  no-scroll: "%scroll%&c이(가) 없습니다."
+  success: "&a강화 성공! &f%before% &7-> &e%after%"
+  fail: "&7강화 실패. &f%before% &7그대로입니다."
+  drop: "&c강화 하락! &f%before% &7-> &c%after%"
+  destroy: "&4장비가 파괴되어 사라졌습니다."
+  destroy-bound: "&4장비가 파괴될 뻔했지만 귀속 저주로 남았습니다. &c%before% &7-> &c+0, 별 0개"
+  star: "&e별을 얻었습니다! &f%before% &7-> &e%after%"
+  star-effect: "&b새 부가 효과: &f%effect%"

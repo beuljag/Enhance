@@ -1,0 +1,18 @@
+name: Enhance
+version: 1.0.0
+main: kr.server.enhance.EnhancePlugin
+api-version: '1.21'
+description: 장비 강화와 스타캐치
+softdepend: [Vault]
+commands:
+  enhance:
+    description: 장비 강화 창 열기와 관리
+    aliases: [강화, 스타캐치]
+    permission: enhance.use
+permissions:
+  enhance.use:
+    description: 강화 창 사용
+    default: true
+  enhance.admin:
+    description: 별의 주문서 지급, 수치 변경, 설정 다시 불러오기
+    default: op
