@@ -58,6 +58,7 @@ final class EnhanceData {
     private final Map<String, Effect> effects = new LinkedHashMap<>();
     private List<Chance> rates = List.of();
     private Scroll scroll;
+    private Scroll protection;
     private int maxStars;
     private double starLevels;
     private double starSuccessMultiplier;
@@ -72,7 +73,8 @@ final class EnhanceData {
         maxStars = Math.max(0, config.getInt("star.max", 10));
         starLevels = config.getDouble("star.levels", 12);
         starSuccessMultiplier = Math.clamp(config.getDouble("star.success-multiplier", 0.9), 0.0, 1.0);
-        scroll = loadScroll(config.getConfigurationSection("scroll"));
+        scroll = loadScroll(config.getConfigurationSection("scroll"), Material.NETHER_STAR);
+        protection = loadScroll(config.getConfigurationSection("protection"), Material.AMETHYST_SHARD);
         for (Category category : Category.values()) {
             String path = "stats." + category.key;
             stats.put(category, loadStat(path, config.getConfigurationSection(path)));
@@ -161,12 +163,12 @@ final class EnhanceData {
         }
     }
 
-    private Scroll loadScroll(ConfigurationSection section) {
+    private Scroll loadScroll(ConfigurationSection section, Material fallback) {
         if (section == null) {
-            return new Scroll(Material.NETHER_STAR, null, List.of(), null);
+            return new Scroll(fallback, null, List.of(), null);
         }
-        Material material = Material.matchMaterial(section.getString("material", "NETHER_STAR"));
-        return new Scroll(material != null ? material : Material.NETHER_STAR, section.getString("name"),
+        Material material = Material.matchMaterial(section.getString("material", fallback.name()));
+        return new Scroll(material != null ? material : fallback, section.getString("name"),
                 section.getStringList("lore"),
                 section.isInt("custom-model-data") ? section.getInt("custom-model-data") : null);
     }
@@ -188,6 +190,10 @@ final class EnhanceData {
 
     Scroll scroll() {
         return scroll;
+    }
+
+    Scroll protection() {
+        return protection;
     }
 
     Stat stat(Category category) {

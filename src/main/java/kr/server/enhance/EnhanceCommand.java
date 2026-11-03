@@ -17,6 +17,8 @@ final class EnhanceCommand implements TabExecutor {
 
     private static final String PREFIX = "&6[강화] &f";
     private static final String ADMIN = "enhance.admin";
+    private static final List<String> SCROLL_WORDS = List.of("주문서", "별의주문서", "scroll");
+    private static final List<String> PROTECTION_WORDS = List.of("방지권", "파괴방지권", "protection");
 
     private final EnhancePlugin plugin;
     private final EnhanceData data;
@@ -63,7 +65,7 @@ final class EnhanceCommand implements TabExecutor {
         send(sender, "명령어 목록");
         for (String line : List.of(
                 "&7- 들고 있는 장비의 강화 창 열기",
-                "give [대상...] [수량] &7- 별의 주문서 지급 (대상: 이름, @a, @e, @p, @r, @s)",
+                "give [주문서|방지권] [대상...] [수량] &7- 아이템 지급 (대상: 이름, @a, @e, @p, @r, @s)",
                 "set <강화> <별> &7- 들고 있는 장비의 수치 변경",
                 "open <대상...> &7- 대상의 강화 창 열기 (NPC, 콘솔용)",
                 "reload &7- 설정 다시 불러오기")) {
@@ -71,16 +73,25 @@ final class EnhanceCommand implements TabExecutor {
         }
     }
 
-    /** 수량과 대상은 순서에 상관없이 받는다. 첫 번째 숫자가 수량이고 나머지는 모두 대상이다. */
+    /**
+     * 아이템 종류, 수량, 대상은 순서에 상관없이 받는다. 종류를 적지 않으면 별의 주문서다.
+     * 첫 번째 숫자가 수량이고, 종류 이름과 수량이 아닌 나머지는 모두 대상이다.
+     */
     private void give(CommandSender sender, String[] args) {
         Integer parsed = null;
+        boolean protection = false;
         List<String> selectors = new ArrayList<>();
         for (int i = 1; i < args.length; i++) {
+            String word = args[i].toLowerCase(Locale.ROOT);
             Integer number = parsed == null ? parseNumber(args[i]) : null;
-            if (number != null) {
-                parsed = number;
-            } else {
-                selectors.add(args[i]);
+            if (PROTECTION_WORDS.contains(word)) {
+                protection = true;
+            } else if (!SCROLL_WORDS.contains(word)) {
+                if (number != null) {
+                    parsed = number;
+                } else {
+                    selectors.add(args[i]);
+                }
             }
         }
         int amount = parsed != null ? parsed : 1;
@@ -92,17 +103,19 @@ final class EnhanceCommand implements TabExecutor {
         if (targets == null) {
             return;
         }
+        EnhanceData.Scroll kind = protection ? data.protection() : data.scroll();
         for (Player target : targets) {
             int left = amount;
-            int stackSize = data.scroll().material().getMaxStackSize();
+            int stackSize = kind.material().getMaxStackSize();
             while (left > 0) {
                 int count = Math.min(left, stackSize);
-                target.getInventory().addItem(items.createScroll(count)).values()
+                ItemStack stack = protection ? items.createProtection(count) : items.createScroll(count);
+                target.getInventory().addItem(stack).values()
                         .forEach(rest -> target.getWorld().dropItem(target.getLocation(), rest));
                 left -= count;
             }
         }
-        send(sender, targets.size() + "명에게 " + data.scroll().name() + " &f" + amount + "개를 지급했습니다.");
+        send(sender, targets.size() + "명에게 " + kind.name() + " &f" + amount + "개를 지급했습니다.");
     }
 
     private void set(CommandSender sender, String label, String[] args) {
@@ -227,7 +240,10 @@ final class EnhanceCommand implements TabExecutor {
         List<String> options;
         if (args.length == 1) {
             options = List.of("give", "set", "open", "reload");
-        } else if (args[0].equalsIgnoreCase("give") || args[0].equalsIgnoreCase("open")) {
+        } else if (args[0].equalsIgnoreCase("give")) {
+            options = new ArrayList<>(List.of("주문서", "방지권"));
+            options.addAll(targetOptions());
+        } else if (args[0].equalsIgnoreCase("open")) {
             options = targetOptions();
         } else {
             options = List.of();

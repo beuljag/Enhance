@@ -94,18 +94,29 @@ scroll:
   material: NETHER_STAR
   name: "&e별의 주문서"
   lore:
-    - "&7+10 장비에 쓰면 별 1개와 무작위 부가 효과를 얻고 0강으로 돌아갑니다."
+    - "&7+10 장비에 사용하면 별과 새로운 효과를 얻습니다."
+    - "&7강화는 +0으로 돌아갑니다."
+
+protection:
+  material: AMETHYST_SHARD
+  name: "&b파괴 방지권"
+  lore:
+    - "&7강화 중 파괴가 나오면 1장을 써서 장비를 지킵니다."
+    - "&7강화 창에서 사용 여부를 바꿀 수 있습니다."
 
 messages:
-  no-economy: "&cVault 경제 플러그인이 없어 강화할 수 없습니다."
-  no-money: "&c돈이 부족합니다. &7필요: &f%cost%"
-  no-scroll: "%scroll%&c이(가) 없습니다."
-  success: "&a강화 성공! &f%before% &7-> &e%after%"
-  fail: "&7강화 실패. &f%before% &7그대로입니다."
-  drop: "&c강화 하락! &f%before% &7-> &c%after%"
-  destroy: "&4장비가 파괴되어 사라졌습니다."
-  destroy-bound: "&4장비가 파괴될 뻔했지만 귀속 저주로 남았습니다. &c%before% &7-> &c+0, 별 0개"
+  destroy-protected: "&b강화에 실패해 장비가 파괴될 뻔했지만, 파괴 방지권으로 지켰습니다. &7남은 파괴 방지권: %left%개"
+  no-economy: "&c지금은 강화할 수 없습니다. 관리자에게 문의해 주세요."
+  no-money: "&c돈이 부족합니다. &7필요한 금액: &f%cost%"
+  no-scroll: "%scroll%&c가 없습니다."
+  success: "&a강화에 성공했습니다! &f%before% &7-> &e%after%"
+  fail: "&7강화에 실패했습니다."
+  drop: "&c강화에 실패해 단계가 떨어졌습니다. &f%before% &7-> &c%after%"
+  destroy: "&4강화에 실패해 장비가 파괴되었습니다."
+  destroy-bound: "&c강화에 실패해 장비가 파괴될 뻔했지만, 귀속 저주로 파괴되지 않았습니다. &7강화와 별은 모두 초기화되었습니다."
+  batch-result: "&e%count%번 강화했습니다. &a성공 %success% &7실패 %fail% &c하락 %drop% &7(%before% -> &e%after%&7)"
+  batch-destroyed: "파괴됨"
   star: "&e별을 얻었습니다! &f%before% &7-> &e%after%"
-  star-effect: "&b새 부가 효과: &f%effect%"
+  star-effect: "&b새로운 효과를 얻었습니다: &f%effect%"
   star-title: "&6★ &e%stars%"
   star-subtitle: "&b%effect%"

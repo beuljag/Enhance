@@ -34,6 +34,7 @@ final class EnhanceItems {
     private final NamespacedKey loreLinesKey;
     private final NamespacedKey effectsKey;
     private final NamespacedKey scrollKey;
+    private final NamespacedKey protectionKey;
     private final NamespacedKey modifierKey;
     private final NamespacedKey bonusKey;
 
@@ -45,6 +46,7 @@ final class EnhanceItems {
         loreLinesKey = new NamespacedKey(plugin, "lore_lines");
         effectsKey = new NamespacedKey(plugin, "effects");
         scrollKey = new NamespacedKey(plugin, "scroll");
+        protectionKey = new NamespacedKey(plugin, "protection");
         bonusKey = new NamespacedKey(plugin, "projectile_bonus");
         modifierKey = new NamespacedKey(plugin, "bonus");
     }
@@ -266,7 +268,14 @@ final class EnhanceItems {
     }
 
     ItemStack createScroll(int amount) {
-        EnhanceData.Scroll scroll = data.scroll();
+        return create(data.scroll(), scrollKey, amount);
+    }
+
+    ItemStack createProtection(int amount) {
+        return create(data.protection(), protectionKey, amount);
+    }
+
+    private ItemStack create(EnhanceData.Scroll scroll, NamespacedKey key, int amount) {
         ItemStack item = new ItemStack(scroll.material(), amount);
         ItemMeta meta = item.getItemMeta();
         if (scroll.name() != null) {
@@ -278,34 +287,51 @@ final class EnhanceItems {
         if (scroll.customModelData() != null) {
             meta.setCustomModelData(scroll.customModelData());
         }
-        meta.getPersistentDataContainer().set(scrollKey, PersistentDataType.BOOLEAN, true);
+        meta.getPersistentDataContainer().set(key, PersistentDataType.BOOLEAN, true);
         item.setItemMeta(meta);
         return item;
     }
 
-    private boolean isScroll(ItemStack item) {
+    private boolean hasTag(ItemStack item, NamespacedKey key) {
         return item != null && item.hasItemMeta()
-                && item.getItemMeta().getPersistentDataContainer().has(scrollKey);
+                && item.getItemMeta().getPersistentDataContainer().has(key);
     }
 
-    int countScrolls(Player player) {
+    private int count(Player player, NamespacedKey key) {
         int count = 0;
         for (ItemStack item : player.getInventory().getStorageContents()) {
-            if (isScroll(item)) {
+            if (hasTag(item, key)) {
                 count += item.getAmount();
             }
         }
         return count;
     }
 
-    /** 별의 주문서 1장을 쓴다. 없으면 false. */
-    boolean consumeScroll(Player player) {
+    private boolean consume(Player player, NamespacedKey key) {
         for (ItemStack item : player.getInventory().getStorageContents()) {
-            if (isScroll(item)) {
+            if (hasTag(item, key)) {
                 item.setAmount(item.getAmount() - 1);
                 return true;
             }
         }
         return false;
+    }
+
+    int countScrolls(Player player) {
+        return count(player, scrollKey);
+    }
+
+    /** 별의 주문서 1장을 쓴다. 없으면 false. */
+    boolean consumeScroll(Player player) {
+        return consume(player, scrollKey);
+    }
+
+    int countProtections(Player player) {
+        return count(player, protectionKey);
+    }
+
+    /** 파괴 방지권 1장을 쓴다. 없으면 false. */
+    boolean consumeProtection(Player player) {
+        return consume(player, protectionKey);
     }
 }
