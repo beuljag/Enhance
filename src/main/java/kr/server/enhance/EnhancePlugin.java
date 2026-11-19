@@ -29,6 +29,7 @@ public final class EnhancePlugin extends JavaPlugin {
         saveDefaultConfig();
         data = new EnhanceData(this);
         data.load();
+        MythicHook.load(this);
         EnhanceItems items = new EnhanceItems(this, data);
 
         getServer().getPluginManager().registerEvents(new EnhanceListener(items), this);
@@ -58,5 +59,6 @@ public final class EnhancePlugin extends JavaPlugin {
     void reload() {
         reloadConfig();
         data.load();
+        MythicHook.load(this);
     }
 }

@@ -3,7 +3,7 @@ version: 1.0.0
 main: kr.server.enhance.EnhancePlugin
 api-version: '1.21'
 description: 장비 강화와 스타캐치
-softdepend: [Vault]
+softdepend: [Vault, MythicMobs]
 commands:
   enhance:
     description: 장비 강화 창 열기와 관리

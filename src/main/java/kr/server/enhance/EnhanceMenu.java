@@ -463,7 +463,7 @@ final class EnhanceMenu implements InventoryHolder {
         List<String> lore = new ArrayList<>();
         lore.add("&f별 " + stars + "개 &7-> &e별 " + (stars + 1) + "개");
         lore.add("&7강화는 &f+0&7으로 돌아갑니다.");
-        int poolSize = data.pool(Category.of(item.getType())).size();
+        int poolSize = data.pool(Category.of(item)).size();
         if (poolSize > 0) {
             lore.add("&b" + poolSize + "가지 효과 중 하나를 무작위로 얻습니다.");
         }

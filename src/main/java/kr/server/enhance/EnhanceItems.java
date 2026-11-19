@@ -60,7 +60,7 @@ final class EnhanceItems {
     }
 
     static boolean isEquipment(ItemStack item) {
-        return item != null && Category.of(item.getType()) != null;
+        return Category.of(item) != null;
     }
 
     int level(ItemStack item) {
@@ -101,7 +101,7 @@ final class EnhanceItems {
 
     /** 수치를 기록하고 능력치와 설명을 그에 맞게 바꾼다. */
     void apply(ItemStack item, int level, int stars) {
-        Category category = Category.of(item.getType());
+        Category category = Category.of(item);
         ItemMeta meta = item.getItemMeta();
         PersistentDataContainer container = meta.getPersistentDataContainer();
         write(container, levelKey, level);
@@ -254,10 +254,11 @@ final class EnhanceItems {
 
     /** 활과 쇠뇌, 던진 삼지창처럼 수정치가 적용되지 않는 공격에 더할 피해. */
     double projectileBonus(ItemStack item) {
-        if (item == null) {
+        // 모델 무기는 공격력으로 강화되고 스킬이 그 공격력으로 피해를 계산하므로, 화살 피해를 또 더하지 않는다.
+        if (item == null || MythicHook.isWeapon(item)) {
             return 0;
         }
-        Category category = Category.of(item.getType());
+        Category category = Category.of(item);
         return category == null ? 0 : data.total(category, level(item), stars(item));
     }
 
