@@ -9,7 +9,14 @@ import org.bukkit.event.entity.EntityShootBowEvent;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.event.inventory.InventoryDragEvent;
+import org.bukkit.entity.Player;
+import org.bukkit.event.player.PlayerItemHeldEvent;
+import org.bukkit.event.player.PlayerJoinEvent;
+import org.bukkit.event.player.PlayerSwapHandItemsEvent;
+import org.bukkit.inventory.ItemStack;
 import org.bukkit.persistence.PersistentDataType;
+import org.bukkit.plugin.Plugin;
+import org.bukkit.plugin.java.JavaPlugin;
 
 final class EnhanceListener implements Listener {
 
@@ -17,6 +24,37 @@ final class EnhanceListener implements Listener {
 
     EnhanceListener(EnhanceItems items) {
         this.items = items;
+    }
+
+    /** 모델 무기는 손에 들 때 강화가 지워지므로, MythicMobs가 처리를 끝낸 뒤 다시 입힌다. */
+    @EventHandler
+    public void onHeld(PlayerItemHeldEvent event) {
+        restoreLater(event.getPlayer(), event.getNewSlot());
+    }
+
+    @EventHandler
+    public void onSwap(PlayerSwapHandItemsEvent event) {
+        restoreLater(event.getPlayer(), event.getPlayer().getInventory().getHeldItemSlot());
+    }
+
+    @EventHandler
+    public void onJoin(PlayerJoinEvent event) {
+        restoreLater(event.getPlayer(), event.getPlayer().getInventory().getHeldItemSlot());
+    }
+
+    private void restoreLater(Player player, int slot) {
+        Plugin plugin = JavaPlugin.getPlugin(EnhancePlugin.class);
+        for (long delay : new long[] {3L, 10L}) {
+            plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
+                if (!player.isOnline()) {
+                    return;
+                }
+                ItemStack item = player.getInventory().getItem(slot);
+                if (items.restore(item)) {
+                    player.getInventory().setItem(slot, item);
+                }
+            }, delay);
+        }
     }
 
     @EventHandler

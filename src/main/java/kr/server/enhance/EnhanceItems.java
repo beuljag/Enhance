@@ -2,6 +2,7 @@ package kr.server.enhance;
 
 import com.google.common.collect.Multimap;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.attribute.Attribute;
@@ -97,6 +98,37 @@ final class EnhanceItems {
 
     boolean isBound(ItemStack item) {
         return item.containsEnchantment(Enchantment.BINDING_CURSE);
+    }
+
+    /**
+     * MythicMobs 모델 무기는 손에 들 때마다 설명과 능력치를 다시 만들어서 강화로 넣은 능력치와 설명이 지워진다.
+     * 강화 수치는 아이템 데이터에 남아 있으므로, 지워졌으면 그 수치로 다시 입힌다. 고쳤으면 true.
+     */
+    boolean restore(ItemStack item) {
+        if (item == null || !item.hasItemMeta() || Category.of(item) == null) {
+            return false;
+        }
+        int level = level(item);
+        int stars = stars(item);
+        if (level == 0 && stars == 0) {
+            return false;
+        }
+        ItemMeta meta = item.getItemMeta();
+        boolean hasModifier = meta.hasAttributeModifiers() && meta.getAttributeModifiers().values().stream()
+                .anyMatch(modifier -> modifierKey.getNamespace().equals(modifier.getKey().getNamespace()));
+        List<Component> lore = meta.hasLore() ? meta.lore() : List.of();
+        boolean hasLore = lore != null && !lore.isEmpty()
+                && LegacyComponentSerializer.legacySection().serialize(lore.getFirst()).contains("강화");
+        if (hasModifier && hasLore) {
+            return false;
+        }
+        if (!hasLore) {
+            // 설명이 새로 만들어졌으면 맨 위 줄은 더 이상 강화 설명이 아니므로 지우지 않게 한다.
+            meta.getPersistentDataContainer().remove(loreLinesKey);
+            item.setItemMeta(meta);
+        }
+        apply(item, level, stars);
+        return true;
     }
 
     /** 수치를 기록하고 능력치와 설명을 그에 맞게 바꾼다. */
