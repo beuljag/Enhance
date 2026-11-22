@@ -4,6 +4,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.command.TabExecutor;
+import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 
@@ -52,6 +53,8 @@ final class EnhanceCommand implements TabExecutor {
             case "give" -> give(sender, args);
             case "set" -> set(sender, label, args);
             case "open" -> open(sender, label, args);
+            case "bind", "귀속" -> bind(sender, true);
+            case "unbind", "귀속해제" -> bind(sender, false);
             case "reload" -> {
                 plugin.reload();
                 send(sender, "설정을 다시 불러왔습니다.");
@@ -68,6 +71,8 @@ final class EnhanceCommand implements TabExecutor {
                 "give [주문서|방지권] [대상...] [수량] &7- 아이템 지급 (대상: 이름, @a, @e, @p, @r, @s)",
                 "set <강화> <별> &7- 들고 있는 장비의 수치 변경",
                 "open <대상...> &7- 대상의 강화 창 열기 (NPC, 콘솔용)",
+                "귀속 &7- 들고 있는 아이템에 귀속 저주 걸기 (파괴 시 사라지지 않음)",
+                "귀속해제 &7- 들고 있는 아이템의 귀속 저주 풀기",
                 "reload &7- 설정 다시 불러오기")) {
             sender.sendMessage(EnhancePlugin.color("&e/" + label + " " + line));
         }
@@ -143,6 +148,31 @@ final class EnhanceCommand implements TabExecutor {
             send(sender, "수치를 &e" + EnhanceItems.describe(level, stars) + "&f(으)로 바꿨습니다.");
         } catch (NumberFormatException e) {
             send(sender, "&c강화와 별은 숫자로 입력하세요.");
+        }
+    }
+
+    /** 들고 있는 아이템에 귀속 저주를 걸거나 푼다. 귀속된 장비는 강화 파괴 때 사라지지 않고 0강으로 남는다. */
+    private void bind(CommandSender sender, boolean on) {
+        if (!(sender instanceof Player player)) {
+            send(sender, "&c플레이어만 사용할 수 있습니다.");
+            return;
+        }
+        ItemStack item = player.getInventory().getItemInMainHand();
+        if (item.getType().isAir()) {
+            send(sender, "&c귀속할 아이템을 손에 드세요.");
+            return;
+        }
+        boolean bound = item.containsEnchantment(Enchantment.BINDING_CURSE);
+        if (on == bound) {
+            send(sender, on ? "&e이미 귀속 저주가 걸려 있습니다." : "&e귀속 저주가 걸려 있지 않습니다.");
+            return;
+        }
+        if (on) {
+            item.addUnsafeEnchantment(Enchantment.BINDING_CURSE, 1);
+            send(sender, "들고 있는 아이템에 &c귀속 저주&f를 걸었습니다.");
+        } else {
+            item.removeEnchantment(Enchantment.BINDING_CURSE);
+            send(sender, "들고 있는 아이템의 귀속 저주를 풀었습니다.");
         }
     }
 
@@ -239,7 +269,7 @@ final class EnhanceCommand implements TabExecutor {
         }
         List<String> options;
         if (args.length == 1) {
-            options = List.of("give", "set", "open", "reload");
+            options = List.of("give", "set", "open", "reload", "귀속", "귀속해제");
         } else if (args[0].equalsIgnoreCase("give")) {
             options = new ArrayList<>(List.of("주문서", "방지권"));
             options.addAll(targetOptions());
