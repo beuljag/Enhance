@@ -2,6 +2,7 @@ package kr.server.enhance;
 
 import com.google.common.collect.Multimap;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.TextReplacementConfig;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
@@ -17,6 +18,8 @@ import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.Plugin;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -24,6 +27,7 @@ import java.util.Locale;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.regex.Pattern;
 
 /** 아이템에 기록하는 강화 수치, 능력치, 설명과 별의 주문서 아이템. */
 final class EnhanceItems {
@@ -33,6 +37,7 @@ final class EnhanceItems {
     private final NamespacedKey levelKey;
     private final NamespacedKey starsKey;
     private final NamespacedKey loreLinesKey;
+    private final NamespacedKey loreStatsKey;
     private final NamespacedKey effectsKey;
     private final NamespacedKey scrollKey;
     private final NamespacedKey protectionKey;
@@ -45,6 +50,7 @@ final class EnhanceItems {
         levelKey = new NamespacedKey(plugin, "level");
         starsKey = new NamespacedKey(plugin, "stars");
         loreLinesKey = new NamespacedKey(plugin, "lore_lines");
+        loreStatsKey = new NamespacedKey(plugin, "lore_stats");
         effectsKey = new NamespacedKey(plugin, "effects");
         scrollKey = new NamespacedKey(plugin, "scroll");
         protectionKey = new NamespacedKey(plugin, "protection");
@@ -125,6 +131,7 @@ final class EnhanceItems {
         if (!hasLore) {
             // 설명이 새로 만들어졌으면 맨 위 줄은 더 이상 강화 설명이 아니므로 지우지 않게 한다.
             meta.getPersistentDataContainer().remove(loreLinesKey);
+            meta.getPersistentDataContainer().remove(loreStatsKey);
             item.setItemMeta(meta);
         }
         apply(item, level, stars);
@@ -255,12 +262,109 @@ final class EnhanceItems {
         PersistentDataContainer container = meta.getPersistentDataContainer();
         List<Component> lore = new ArrayList<>(meta.hasLore() ? meta.lore() : List.of());
         int previous = container.getOrDefault(loreLinesKey, PersistentDataType.INTEGER, 0);
+        // 맨 위 줄이 강화 설명이 아니면 설명이 새로 만들어진 것이므로, 지울 줄도 이미 더한 값도 없다.
+        boolean fresh = lore.isEmpty()
+                || !LegacyComponentSerializer.legacySection().serialize(lore.getFirst()).contains("강화");
+        if (fresh) {
+            previous = 0;
+            container.remove(loreStatsKey);
+        }
         lore.subList(0, Math.min(previous, lore.size())).clear();
+
+        // 원래 설명에 적힌 공격력, 공격 속도, 공격 사거리 숫자에 강화로 오른 만큼을 더해 보여준다.
+        // 이미 더해 둔 값은 기록해 두었다가 빼고 다시 더한다.
+        double[] added = readStatBonus(container);
+        double[] bonus = statBonus(category, level, stars, effects);
+        double[] delta = new double[STAT_LINES.size()];
+        boolean changed = false;
+        for (int i = 0; i < delta.length; i++) {
+            delta[i] = bonus[i] - added[i];
+            changed |= Math.abs(delta[i]) > 1e-9;
+        }
+        if (changed) {
+            lore.replaceAll(line -> shiftStats(line, delta));
+        }
+        writeStatBonus(container, bonus);
 
         List<Component> lines = buildLore(category, level, stars, effects);
         lore.addAll(0, lines);
         meta.lore(lore.isEmpty() ? null : lore);
         write(container, loreLinesKey, lines.size());
+    }
+
+    /** 원래 설명에서 강화 수치를 더해 줄 줄. 숫자 그룹(마지막 그룹)에 값을 더한다. */
+    private static final List<Pattern> STAT_LINES = List.of(
+            Pattern.compile("(?<!마법 )(공격력 )(-?\\d+(?:\\.\\d+)?)"),
+            Pattern.compile("(공격 속도 )(-?\\d+(?:\\.\\d+)?)"),
+            Pattern.compile("(공격 사거리 (?:\\d+(?:\\.\\d+)?-)?)(\\d+(?:\\.\\d+)?)"));
+    private static final List<Attribute> STAT_ATTRIBUTES = List.of(
+            Attribute.ATTACK_DAMAGE, Attribute.ATTACK_SPEED, Attribute.ENTITY_INTERACTION_RANGE);
+
+    private double[] statBonus(Category category, int level, int stars, List<EnhanceData.Effect> effects) {
+        double[] bonus = new double[STAT_ATTRIBUTES.size()];
+        EnhanceData.Stat stat = data.stat(category);
+        for (int i = 0; i < bonus.length; i++) {
+            Attribute attribute = STAT_ATTRIBUTES.get(i);
+            if (attribute.equals(stat.attribute())) {
+                bonus[i] += data.total(category, level, stars);
+            }
+            for (EnhanceData.Effect effect : effects) {
+                if (attribute.equals(effect.attribute())) {
+                    bonus[i] += effect.amount();
+                }
+            }
+        }
+        return bonus;
+    }
+
+    private Component shiftStats(Component line, double[] delta) {
+        Component result = line;
+        for (int i = 0; i < delta.length; i++) {
+            if (Math.abs(delta[i]) < 1e-9) {
+                continue;
+            }
+            double amount = delta[i];
+            result = result.replaceText(TextReplacementConfig.builder()
+                    .match(STAT_LINES.get(i))
+                    .replacement((match, builder) -> builder.content(match.group(1)
+                            + statNumber(Double.parseDouble(match.group(2)) + amount)))
+                    .build());
+        }
+        return result;
+    }
+
+    private static String statNumber(double value) {
+        return BigDecimal.valueOf(value).setScale(2, RoundingMode.HALF_UP).stripTrailingZeros().toPlainString();
+    }
+
+    private double[] readStatBonus(PersistentDataContainer container) {
+        double[] values = new double[STAT_ATTRIBUTES.size()];
+        String stored = container.get(loreStatsKey, PersistentDataType.STRING);
+        if (stored != null) {
+            String[] parts = stored.split(",");
+            for (int i = 0; i < Math.min(parts.length, values.length); i++) {
+                try {
+                    values[i] = Double.parseDouble(parts[i]);
+                } catch (NumberFormatException ignored) {
+                    // 잘못된 기록은 0으로 본다.
+                }
+            }
+        }
+        return values;
+    }
+
+    private void writeStatBonus(PersistentDataContainer container, double[] bonus) {
+        boolean any = false;
+        StringBuilder text = new StringBuilder();
+        for (int i = 0; i < bonus.length; i++) {
+            any |= Math.abs(bonus[i]) > 1e-9;
+            text.append(i == 0 ? "" : ",").append(bonus[i]);
+        }
+        if (any) {
+            container.set(loreStatsKey, PersistentDataType.STRING, text.toString());
+        } else {
+            container.remove(loreStatsKey);
+        }
     }
 
     private List<Component> buildLore(Category category, int level, int stars, List<EnhanceData.Effect> effects) {
